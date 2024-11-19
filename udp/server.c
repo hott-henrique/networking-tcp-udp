@@ -69,7 +69,7 @@ int main(int argc, char * argv[]) {
                                   BUFFER, sizeof(BUFFER) / sizeof(BUFFER[0]),
                                   MSG_WAITALL,
                                   (struct sockaddr *) &client_address, &client_length))) {
-        printf("REQUEST %ld: %s\n", msg_lenght, BUFFER);
+        printf("REQUEST: %s\n", BUFFER);
 
         char * request_method = strtok(BUFFER, " ");
 
@@ -90,48 +90,36 @@ int main(int argc, char * argv[]) {
         unsigned char * response = response_reader(requested_file, &response_size);
 
         /* INFO: With each content we send an integer representing the packet index. */
-        long num_full_packets = response_size / 1020.0;
-        long num_total_packets = ceil(response_size / 1020.0);
+        long header_size = 2 * sizeof(long);
+        long content_size = PACKET_SZ - header_size;
+        long num_full_packets = response_size / content_size;
+        long num_total_packets = ceil((double) response_size / (double) content_size);
 
-        long ack_response[] = { 0, num_total_packets, response_size };
+        printf("NUM TOTAL PACKETS: %ld\n", num_total_packets);
 
-        sendto(sockfd, ack_response, sizeof(long) * 3, MSG_CONFIRM, (struct sockaddr *) &client_address, client_length);
+        long i = 0;
+        for (; i < num_full_packets; i = i + 1) {
+            usleep(300);
+            ((long *) RESPONSE_BUFFER)[0] = i;
+            ((long *) RESPONSE_BUFFER)[1] = num_total_packets;
 
-        while ((msg_lenght = recvfrom(sockfd,
-                                      BUFFER, sizeof(BUFFER) / sizeof(BUFFER[0]),
-                                      MSG_WAITALL,
-                                      (struct sockaddr *) &client_address, &client_length))) {
-            request_method = strtok(BUFFER, " ");
-
-            if (strcmp(request_method, "ACKNOWLEDGMENT") == 0) {
-                break;
-            }
-
-            sendto(sockfd, ack_response, sizeof(long) * 3, MSG_CONFIRM, (struct sockaddr *) &client_address, client_length);
-        }
-
-        long packet_content_sz = PACKET_SZ - sizeof(long);
-
-        for (int i = 0; i < num_full_packets; i = i + 1) {
-            ((long *) RESPONSE_BUFFER)[0] = i + 1;
-
-            memcpy(&RESPONSE_BUFFER[8], &response[i * packet_content_sz], packet_content_sz);
+            memcpy(&RESPONSE_BUFFER[header_size], &response[i * content_size], content_size);
 
             sendto(sockfd, RESPONSE_BUFFER, PACKET_SZ, MSG_CONFIRM, (struct sockaddr *) &client_address, client_length);
         }
 
         if (num_full_packets != num_total_packets) {
-            long i = num_full_packets;
+            ((long *) RESPONSE_BUFFER)[0] = i;
+            ((long *) RESPONSE_BUFFER)[1] = num_total_packets;
 
-            ((long *) RESPONSE_BUFFER)[0] = i + 1;
-
-            memcpy(&RESPONSE_BUFFER[8], &response[i * packet_content_sz], packet_content_sz);
+            memcpy(&RESPONSE_BUFFER[header_size], &response[i * content_size], content_size);
 
             sendto(sockfd,
                    RESPONSE_BUFFER,
-                   sizeof(long) + (response_size - (num_full_packets * packet_content_sz)),
+                   header_size + (response_size - (num_full_packets * content_size)),
                    MSG_CONFIRM,
-                   (struct sockaddr *) &client_address, client_length);
+                   (struct sockaddr *) &client_address,
+                   client_length);
         }
 
         free(response);

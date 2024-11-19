@@ -59,6 +59,7 @@ int main(int argc, char **argv) {
     free(file_content);
     free(file_checksum);
 
+    printf("TimeElapsed: %f second(s)", elapsed);
     printf("DownloadRate: %f bytes per second", file_sz / elapsed);
 
     return EXIT_SUCCESS;
