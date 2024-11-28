@@ -95,11 +95,8 @@ int main(int argc, char * argv[]) {
         long num_full_packets = response_size / content_size;
         long num_total_packets = ceil((double) response_size / (double) content_size);
 
-        printf("NUM TOTAL PACKETS: %ld\n", num_total_packets);
-
         long i = 0;
         for (; i < num_full_packets; i = i + 1) {
-            usleep(300);
             ((long *) RESPONSE_BUFFER)[0] = i;
             ((long *) RESPONSE_BUFFER)[1] = num_total_packets;
 
