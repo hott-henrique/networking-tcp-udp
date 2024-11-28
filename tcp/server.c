@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -96,16 +97,19 @@ int main(int argc, char * argv[]) {
 
             write(newsockfd, &response_total_length, sizeof(long));
 
-            size_t num_packets = response_total_length / PACKET_SZ;
+            long content_size = PACKET_SZ;
+            long num_full_packets = response_total_length / content_size;
+            long num_total_packets = ceil((double) response_total_length / (double) content_size);
 
-            for (int i = 0; i < num_packets; i = i + 1) {
+            for (int i = 0; i < num_full_packets; i = i + 1) {
                 write(newsockfd, &response[i * PACKET_SZ], PACKET_SZ);
             }
 
-            /* TODO: Fix to have the length of the remaining response. */
-            write(newsockfd,
-                  &response[response_total_length - (response_total_length % PACKET_SZ)],
-                  response_total_length % PACKET_SZ);
+            if (num_full_packets != num_total_packets) {
+                write(newsockfd,
+                      &response[num_full_packets * content_size],
+                      (response_total_length - (num_full_packets * content_size)));
+            }
 
             close(newsockfd);
 

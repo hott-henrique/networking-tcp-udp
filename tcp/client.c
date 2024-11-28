@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include <arpa/inet.h>
 
@@ -31,36 +32,38 @@ int main(int argc, char **argv) {
 
     gettimeofday(&t1, NULL);
 
-    unsigned char * file_content = exec_request(argv[1], "READ ../file.txt END", &file_sz);
+    unsigned char * file_content = exec_request(argv[1], "READ ../file_big.txt END", &file_sz);
 
     gettimeofday(&t2, NULL);
 
     double elapsed = (t2.tv_sec - t1.tv_sec);
 
-    unsigned char * file_checksum = exec_request(argv[1], "CHECKSUM ../file.txt END", &checksum_sz);
+    unsigned char * file_checksum = exec_request(argv[1], "CHECKSUM ../file_small.txt END", &checksum_sz);
 
     unsigned char checksum[SHA512_DIGEST_LENGTH];
 
-    SHA512((unsigned char*) file_content, file_sz, checksum);
+    SHA512(file_content, file_sz, checksum);
 
     if (memcmp(checksum, file_checksum, SHA512_DIGEST_LENGTH) == 0) {
-        FILE * output_file = fopen(argv[2], "wb");
-
-        if (!output_file) {
-            printf("[ERROR] Could not open ouput file.\n");
-        } else {
-            fwrite(file_content, sizeof(unsigned char), file_sz, output_file);
-            fclose(output_file);
-        }
+        printf("DownloadSuccessful: true\n");
     } else {
-        printf("[ERROR] Files do not match.\n");
+        printf("DownloadSuccessful: false\n");
+    }
+
+    FILE * output_file = fopen(argv[2], "wb");
+
+    if (!output_file) {
+        printf("[ERROR] Could not open ouput file.\n");
+    } else {
+        fwrite(file_content, sizeof(unsigned char), file_sz, output_file);
+        fclose(output_file);
     }
 
     free(file_content);
     free(file_checksum);
 
-    printf("TimeElapsed: %f second(s)", elapsed);
-    printf("DownloadRate: %f bytes per second", file_sz / elapsed);
+    printf("TimeElapsed: %f second(s)\n", elapsed);
+    printf("DownloadRate: %f bytes per second\n", file_sz / elapsed);
 
     return EXIT_SUCCESS;
 }
@@ -94,15 +97,12 @@ unsigned char * exec_request(char * host, const char * request, long * out_sz) {
 
     unsigned char * response = (unsigned char *) malloc(sizeof(unsigned char) * (*out_sz));
 
-    size_t num_packets = *out_sz / PACKET_SZ;
+    long num_total_packets = ceil((double) *out_sz / (double) PACKET_SZ);
 
-    for (int i = 0; i < num_packets; i = i + 1) {
-        read(client, &response[i * PACKET_SZ], PACKET_SZ);
+    for (int i = 0; i < num_total_packets; i = i + 1) {
+        long num_bytes = read(client, &response[i * PACKET_SZ], PACKET_SZ);
+        printf("Bytes readed = %ld\n", num_bytes);
     }
-
-    read(client,
-         &response[*out_sz - (*out_sz % PACKET_SZ)],
-         *out_sz % PACKET_SZ);
 
     close(client);
 
