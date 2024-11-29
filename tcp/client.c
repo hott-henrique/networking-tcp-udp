@@ -32,13 +32,13 @@ int main(int argc, char **argv) {
 
     gettimeofday(&t1, NULL);
 
-    unsigned char * file_content = exec_request(argv[1], "READ ../file_big.txt END", &file_sz);
+    unsigned char * file_content = exec_request(argv[1], "READ ../file_2mb.txt END", &file_sz);
 
     gettimeofday(&t2, NULL);
 
-    double elapsed = (t2.tv_sec - t1.tv_sec);
+    double elapsed = (t2.tv_sec - t1.tv_sec) + (t2.tv_usec - t1.tv_usec) / 1e6;
 
-    unsigned char * file_checksum = exec_request(argv[1], "CHECKSUM ../file_small.txt END", &checksum_sz);
+    unsigned char * file_checksum = exec_request(argv[1], "CHECKSUM ../file_2mb.txt END", &checksum_sz);
 
     unsigned char checksum[SHA512_DIGEST_LENGTH];
 
@@ -99,9 +99,11 @@ unsigned char * exec_request(char * host, const char * request, long * out_sz) {
 
     long num_total_packets = ceil((double) *out_sz / (double) PACKET_SZ);
 
+    printf("NTP: %ld\n", num_total_packets);
+
     for (int i = 0; i < num_total_packets; i = i + 1) {
+        // printf("idx: %d %d\n", i * PACKET_SZ, PACKET_SZ);
         long num_bytes = read(client, &response[i * PACKET_SZ], PACKET_SZ);
-        printf("Bytes readed = %ld\n", num_bytes);
     }
 
     close(client);

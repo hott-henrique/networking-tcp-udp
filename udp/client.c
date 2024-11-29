@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
 
     gettimeofday(&t1, NULL);
 
-    unsigned char * file_content = exec_request(argv[1], "READ ../file.txt END", &file_sz, &file_packet_loss);
+    unsigned char * file_content = exec_request(argv[1], "READ ../file_2mb.txt END", &file_sz, &file_packet_loss);
 
     if (!file_content) {
         puts("[ERROR] Download was not sucessful.");
@@ -45,11 +45,10 @@ int main(int argc, char **argv) {
 
     gettimeofday(&t2, NULL);
 
-    double elapsed = (t2.tv_sec - t1.tv_sec);
-
+    double elapsed = (t2.tv_sec - t1.tv_sec) + (t2.tv_usec - t1.tv_usec) / 1e6;
 
     if (file_content) {
-        unsigned char * file_checksum = exec_request(argv[1], "CHECKSUM ../file.txt END", &checksum_sz, &checksum_packet_sz);
+        unsigned char * file_checksum = exec_request(argv[1], "CHECKSUM ../file_2mb.txt END", &checksum_sz, &checksum_packet_sz);
 
         unsigned char checksum[SHA512_DIGEST_LENGTH];
 
@@ -80,6 +79,7 @@ int main(int argc, char **argv) {
         free(file_content);
     }
 
+    printf("TimeElapsed: %f second(s)\n", elapsed);
     printf("DownloadRate: %f bytes per second\n", file_sz / elapsed);
     printf("PacketLoss: %f\n", file_packet_loss);
 
@@ -165,7 +165,7 @@ unsigned char * exec_request(char * host, const char * request, long * out_sz, d
         }
     }
 
-    *out_packet_loss = (double)shlen(hash) / (double)num_total_packets;
+    *out_packet_loss = 1 - ((double)shlen(hash) / (double)num_total_packets);
 
     unsigned char * file_content = NULL;
 
